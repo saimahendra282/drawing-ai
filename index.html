@@ -1,1 +1,181 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+  <head>
+    <meta charset="utf-8">
+    <title>Drawing + Gemini Ai App </title>
+    <link rel="icon" type="image/x-icon" href="https://img.icons8.com/emoji/32/artist-palette.png">
+     <link rel="stylesheet" href="style.css">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="main.js" defer></script>
+    <head>
+      <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+     </head>
+    
+  </head>
+  <body>
+    
+    <div class="container">
+      
+      <section class="tools-board">
+        <div class="row">
+          <label class="title">Shapes</label>
+          <ul class="options" id="shape-list">
+            <li class="option tool" id="rectangle">
+              <i class="fas fa-square"></i> <!-- Rectangle icon -->
+              <span>Rectangle</span>
+            </li>
+            <li class="option tool" id="rhombus">
+              <img width="16" height="16" src="https://img.icons8.com/external-flat-icons-inmotus-design/16/external-form-geometry-figures-flat-icons-inmotus-design-9.png" alt="external-form-geometry-figures-flat-icons-inmotus-design-9"/>           <span>Rhombus</span>
+          </li>
+
+            <li class="option tool" id="circle">
+              <i class="fas fa-circle"></i> <!-- Circle icon -->
+              <span>Circle</span>
+            </li>
+            <li class="option tool" id="triangle">
+              <i class="fa fa-caret-up"></i> <!-- Triangle icon -->
+              <span>Triangle</span>
+            </li>
+             
+          </ul>
+          
+          
+        </div>
+        <div class="row">
+          <label class="title">Options</label>
+          <ul class="options">
+            <li class="option">
+              <input type="checkbox" id="fill-color">
+              <label for="fill-color">Fill color</label>
+            </li>
+            <li class="option active tool" id="brush">
+              <i class="fas fa-paint-brush"></i> <!-- Brush icon -->
+              <span>Brush</span>
+            </li>
+            <li class="option tool" id="eraser">
+              <i class="fas fa-eraser"></i> <!-- Eraser icon -->
+              <span>Eraser</span>
+            </li>
+            <li class="option">
+              <input type="range" id="size-slider" min="1" max="30" value="5">
+            </li>
+          </ul>
+        </div>
+        <div class="row colors">
+          <label class="title">Colors</label>
+          <ul class="options">
+            <li class="option"></li>
+            <li class="option selected"></li>
+            <li class="option"></li>
+            <li class="option"></li>
+            <li class="option">
+              <input type="color" id="color-picker" value="#a374d3">
+            </li>
+          </ul>
+        </div>
+        <div class="row buttons">
+          <button class="clear-canvas">Clear Canvas</button>
+          <button class="save-img">Save As Image</button>
+          <button class="ask-ai" id="ask-ai">Ask AI ✨</button>
+        </div>
+      </section>
+      <section class="drawing-board">
+        <canvas id="canvas" width="500" height="500"></canvas>
+      </section>
+      
+    </div>
+    <section class="response-board">
+      <div id="response-container" class="response-container">
+        <!-- AI response will be displayed here -->
+      </div>
+    </section>
+
+    <script type="importmap">
+      {
+          "imports": {
+              "@google/generative-ai": "https://esm.run/@google/generative-ai",
+              "base64-js": "https://esm.run/base64-js",
+              "markdown-it": "https://esm.run/markdown-it"
+          }
+      }
+  </script>
+  
+ <script type="module">
+    import { GoogleGenerativeAI, HarmBlockThreshold, HarmCategory } from "@google/generative-ai";
+    import Base64 from "base64-js";
+    import MarkdownIt from "markdown-it";
+
+    const API_KEY = ${{ secrets.GEMINI_API }};
+
+    const canvas = document.getElementById("canvas");
+    const askAiButton = document.getElementById("ask-ai");
+    const responseContainer = document.getElementById("response-container");
+    const md = new MarkdownIt();
+
+    askAiButton.addEventListener("click", async () => {
+        console.log("Processing canvas image...");
+
+        try {
+            // Step 1: Ask the user for a question using prompt
+            const userQuestion = prompt("What is the question you want to ask?");
+
+            if (!userQuestion) {
+                alert("Please provide a question.");
+                return;
+            }
+
+            // Step 2: Convert canvas content to base64
+            const imageBase64 = canvas.toDataURL("image/png").split(",")[1];
+
+            // Step 3: Assemble the prompt content with the user input
+            const contents = [
+                {
+                    role: "user",
+                    parts: [
+                        {
+                            inline_data: {
+                                mime_type: "image/png",
+                                data: imageBase64,
+                            },
+                        },
+                        { text: userQuestion },  // Use the user-provided question
+                    ],
+                },
+            ];
+
+            // Step 4: Initialize Google Generative AI
+            const genAI = new GoogleGenerativeAI(API_KEY);
+            const model = genAI.getGenerativeModel({
+                model: "gemini-1.5-pro",
+                safetySettings: [
+                    {
+                        category: HarmCategory.HARM_CATEGORY_HARASSMENT,
+                        threshold: HarmBlockThreshold.BLOCK_ONLY_HIGH,
+                    },
+                ],
+            });
+
+            // Step 5: Call the model and process the result
+            const result = await model.generateContentStream({ contents });
+            const buffer = [];
+
+            for await (const response of result.stream) {
+                buffer.push(response.text());
+            }
+
+            const aiResponse = buffer.join("");
+            console.log("AI Response:", aiResponse);
+
+            // Step 6: Render the AI response in the response container
+            responseContainer.innerHTML = md.render(aiResponse);
+        } catch (error) {
+            console.error("Error generating AI response:", error);
+        }
+    });
+</script>
+  
+
+  
+  </body>
+</html>
 
